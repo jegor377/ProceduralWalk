@@ -173,6 +173,12 @@ albedo_color = Color( 0.101961, 1, 0, 1 )
 
 [node name="Player" type="KinematicBody"]
 script = ExtResource( 1 )
+speed = 20.0
+foot_bone_dist_to_ground = 0.25
+step_anim_time = 0.4
+directional_delta = 3.0
+step_anim_height = 1.5
+max_legs_spread = 5.0
 
 [node name="CameraPivot" type="Spatial" parent="."]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, 0 )
@@ -264,7 +270,7 @@ root_bone = "UpperLeg.L"
 tip_bone = "Foot.L"
 override_tip_basis = false
 use_magnet = true
-magnet = Vector3( 1, 0, 4 )
+magnet = Vector3( 0.5, 0, 6 )
 target_node = NodePath("../../../LeftLegControl")
 
 [node name="RightLeg" type="SkeletonIK" parent="Armature/Skeleton"]
@@ -273,7 +279,7 @@ root_bone = "UpperLeg.R"
 tip_bone = "Foot.R"
 override_tip_basis = false
 use_magnet = true
-magnet = Vector3( -1, 0, 4 )
+magnet = Vector3( -0.5, 0, 6 )
 target_node = NodePath("../../../RightLegControl")
 
 [node name="LeftLegControl" type="Position3D" parent="."]

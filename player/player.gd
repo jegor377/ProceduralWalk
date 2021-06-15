@@ -13,7 +13,8 @@ var right := false
 # animation
 # additional distance from the end of foot's bone to the ground
 # used to make foot be on the ground instead of in the ground.
-export(float) var foot_bone_dist_to_ground = 0
+# sometimes the leg is not on the ground because of the magnet vector of SkeletonIK
+export(float) var foot_bone_dist_to_ground = -0.05
 # maximal distance in which the left leg can move away from proper leg position
 export(float) var max_left_leg_dist = 0.3
 # legs move animation time for both legs
