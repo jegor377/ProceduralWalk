@@ -2,15 +2,15 @@
 
 [ext_resource path="res://player/player.tscn" type="PackedScene" id=1]
 
-[sub_resource type="SpatialMaterial" id=4]
+[sub_resource type="SpatialMaterial" id=1]
 
-[sub_resource type="SpatialMaterial" id=3]
+[sub_resource type="SpatialMaterial" id=2]
 albedo_color = Color( 0, 1, 0.882353, 1 )
 
-[sub_resource type="SpatialMaterial" id=5]
+[sub_resource type="SpatialMaterial" id=3]
 albedo_color = Color( 1, 0, 0, 1 )
 
-[sub_resource type="SpatialMaterial" id=6]
+[sub_resource type="SpatialMaterial" id=4]
 albedo_color = Color( 0, 0.462745, 1, 1 )
 
 [node name="World" type="Spatial"]
@@ -21,44 +21,44 @@ use_collision = true
 [node name="CSGBox" type="CSGBox" parent="CSGCombiner"]
 width = 50.0
 depth = 100.0
-material = SubResource( 4 )
+material = SubResource( 1 )
 
 [node name="CSGBox4" type="CSGBox" parent="CSGCombiner"]
 transform = Transform( -1, -8.38214e-09, -8.702e-08, 0, 0.995393, -0.0958805, 8.74228e-08, -0.0958805, -0.995393, 0, 0.742838, 29.9339 )
 width = 11.456
 depth = 17.1993
-material = SubResource( 3 )
+material = SubResource( 2 )
 
 [node name="CSGCylinder" type="CSGCylinder" parent="CSGCombiner"]
 transform = Transform( -0.5, -0.866025, 3.78552e-08, 0, -4.37114e-08, -1, 0.866025, -0.5, 2.18557e-08, 6, 0.441196, -9.90031 )
 height = 23.4054
 sides = 16
-material = SubResource( 5 )
+material = SubResource( 3 )
 
 [node name="CSGBox2" type="CSGBox" parent="CSGCombiner"]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.314182, -35.4955 )
 width = 19.5341
 depth = 6.0
-material = SubResource( 6 )
+material = SubResource( 4 )
 
 [node name="CSGBox3" type="CSGBox" parent="CSGCombiner"]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.658675, -37.4848 )
 width = 20.0
 depth = 6.0
-material = SubResource( 6 )
+material = SubResource( 4 )
 
 [node name="CSGBox5" type="CSGBox" parent="CSGCombiner"]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.00912, -39.2555 )
 width = 20.5571
 depth = 6.0
-material = SubResource( 6 )
+material = SubResource( 4 )
 
 [node name="CSGBox6" type="CSGBox" parent="CSGCombiner"]
 transform = Transform( 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.889636, -41.1619 )
 width = 20.9735
 height = 2.87442
 depth = 6.0
-material = SubResource( 6 )
+material = SubResource( 4 )
 
 [node name="DirectionalLight" type="DirectionalLight" parent="."]
 transform = Transform( 1, 0, 0, 0, 0.866025, 0.5, 0, -0.5, 0.866025, 0, 29.963, 20.338 )

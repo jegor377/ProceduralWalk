@@ -1,34 +1,55 @@
 extends KinematicCharacter
 
 
+# moving
 export(float) var speed = 10
-export(float) var feet_dist_delta = 0.2
-export(float) var max_left_leg_dist = 0.3
-export(float) var step_time := 0.5
-export(float) var legs_delta := 1.5
-export(float) var step_delta_y := 1.0
-export(NodePath) var spawn_point
+export(float) var speed_change_rate = 15.0
 
 var forward := false
 var backward := false
 var left := false
 var right := false
 
+# animation
+# additional distance from the end of foot's bone to the ground
+# used to make foot be on the ground instead of in the ground.
+export(float) var foot_bone_dist_to_ground = 0
+# maximal distance in which the left leg can move away from proper leg position
+export(float) var max_left_leg_dist = 0.3
+# legs move animation time for both legs
+export(float) var step_anim_time := 0.5
+# additional distance for moving legs a little bit farther in direction of
+# velocity. Allows walk animation to look properly. When human walks he places
+# legs a little bit further in direction of walking.
+export(float) var directional_delta := 1.5
+# the height of lifting foot when animating walk
+export(float) var step_anim_height := 1.0
+# maximum distance between legs in 2D space.
+# it should be calculated but to make it simpler just tweak the value and look
+# if it looks good to you.
+export(float) var max_legs_spread = 3.0
+
 var last_l_leg_pos: Vector3
 var last_r_leg_pos: Vector3
-var dest_l_leg_pos: Vector3
-var dest_r_leg_pos: Vector3
 var l_leg_pos: Vector3
 var r_leg_pos: Vector3
 
 onready var skeleton := $Armature/Skeleton
 
+var is_animating_legs := false
+var legs_anim_timer := 0.0
+
+onready var original_hips_pos := get_hips_pos()
+onready var current_hips_pos := get_hips_pos()
+
+export(float) var crouch_delta = 1
+var is_crouching := false
+
+# raycast
 onready var space_state = get_world().direct_space_state
 export(float) var ray_length = 10
 
-var is_animating_legs := false
-var legs_anims_t := 0.0
-
+# camera
 export(float, 0.1, 1.0) var mouse_sensivitiy = 0.3
 export(float, -90, 0) var min_pitch = -90
 export(float, 0, 90) var max_pitch = 90
@@ -36,20 +57,24 @@ export(float, 0, 90) var max_pitch = 90
 onready var camera_pivot := $CameraPivot
 onready var camera := $CameraPivot/CameraBoom/Camera
 
-onready var original_hips_pos := get_hips_pos()
-onready var normal_hips_pos := get_hips_pos()
-
-export(float) var crouch_delta = 1
-var is_crouching := false
-
 export(bool) var first_camera = true
 
-#onready var 
+# respawn
+export(NodePath) var spawn_point
 
 func _ready():
-	set_prop_local_legs_pos()
+	set_proper_local_legs_pos()
 	$Armature/Skeleton/LeftLeg.start()
 	$Armature/Skeleton/RightLeg.start()
+
+func set_proper_local_legs_pos() -> void:
+	var l_foot_id: int = skeleton.find_bone('Foot.L')
+	var l_foot_rest: Transform = skeleton.get_bone_global_pose(l_foot_id)
+	$PropLeftLegPos.transform.origin = l_foot_rest.origin
+	
+	var r_foot_id: int = skeleton.find_bone('Foot.R')
+	var r_foot_rest: Transform = skeleton.get_bone_global_pose(r_foot_id)
+	$PropRightLegPos.transform.origin = r_foot_rest.origin
 
 func get_hips_pos() -> Vector3:
 	var hips_id: int = skeleton.find_bone('Hips')
@@ -62,49 +87,45 @@ func set_hips_pos(pos: Vector3) -> void:
 	var hips_rest: Transform = skeleton.get_bone_custom_pose(hips_id)
 	var new_transform = Transform(hips_rest)
 	new_transform.origin = pos
-	#skeleton.set_bone_global_pose_override(hips_id, new_transform, 1.0)
 	skeleton.set_bone_custom_pose(hips_id, new_transform)
 
-func set_prop_local_legs_pos() -> void:
-	var l_foot_id: int = skeleton.find_bone('Foot.L')
-	var l_foot_rest: Transform = skeleton.get_bone_global_pose(l_foot_id)
-	$PropLeftLegPos.transform.origin = l_foot_rest.origin
-	
-	var r_foot_id: int = skeleton.find_bone('Foot.R')
-	var r_foot_rest: Transform = skeleton.get_bone_global_pose(r_foot_id)
-	$PropRightLegPos.transform.origin = r_foot_rest.origin
-
-func set_leg_pos_to_prop_pos() -> void:
-	#print($PropLeftLegPos.global_transform.origin, " ", $PropRightLegPos.global_transform.origin)
-	l_leg_pos = $PropLeftLegPosToGround.global_transform.origin + Vector3.UP * feet_dist_delta
-	r_leg_pos = $PropRightLegPosToGround.global_transform.origin + Vector3.UP * feet_dist_delta
+func set_legs_pos_to_prop_legs_pointers_pos() -> void:
+	l_leg_pos = $PropLeftLegPosToGround.global_transform.origin + Vector3.UP * foot_bone_dist_to_ground
+	r_leg_pos = $PropRightLegPosToGround.global_transform.origin + Vector3.UP * foot_bone_dist_to_ground
 
 func _process(delta):
+	handle_respawn()
+	set_global_legs_pos()
+	set_prop_legs_ground_pointers()
+	move_legs(delta)
+	if is_flying():
+		set_legs_pos_to_prop_legs_pointers_pos()
+
+func handle_respawn() -> void:
 	if transform.origin.y < -20:
 		transform.origin = get_node(spawn_point).transform.origin
-	set_global_legs_pos()
-	set_prop_legs_to_ground()
-	move_legs(delta)
-	if not is_on_floor():
-		set_leg_pos_to_prop_pos()
+
+func is_flying() -> bool:
+	return abs(velocity.y) > 1.0
 
 func set_global_legs_pos() -> void:
 	$LeftLegControl.global_transform.origin = l_leg_pos
 	$RightLegControl.global_transform.origin = r_leg_pos
 
-func set_prop_legs_to_ground() -> void:
+func set_prop_legs_ground_pointers() -> void:
 	var legs_pos := get_prop_legs_to_ground()
-	$PropLeftLegPosToGround.global_transform.origin = legs_pos[0]
+	$PropLeftLegPosToGround.global_transform.origin = legs_pos[0] 
 	$PropRightLegPosToGround.global_transform.origin = legs_pos[1]
 
 func get_prop_legs_to_ground() -> Array:
-	var l_prop_leg_pos: Vector3 = $PropLeftLegPos.global_transform.origin
-	var r_prop_leg_pos: Vector3 = $PropRightLegPos.global_transform.origin
+	# prop legs pos moved in direction of characters velocity
+	var l_prop_leg_pos: Vector3 = $PropLeftLegPos.global_transform.origin + static_velocity.normalized() * directional_delta
+	var r_prop_leg_pos: Vector3 = $PropRightLegPos.global_transform.origin + static_velocity.normalized() * directional_delta
 	
 	var l_leg_ray = space_state.intersect_ray(
-			l_prop_leg_pos + Vector3.UP, l_prop_leg_pos + Vector3.DOWN * ray_length, [self])
+			l_prop_leg_pos + Vector3.UP * ray_length, l_prop_leg_pos + Vector3.DOWN * ray_length, [self])
 	var r_leg_ray = space_state.intersect_ray(
-			r_prop_leg_pos + Vector3.UP, r_prop_leg_pos + Vector3.DOWN * ray_length, [self])
+			r_prop_leg_pos + Vector3.UP * ray_length, r_prop_leg_pos + Vector3.DOWN * ray_length, [self])
 	
 	
 	return [
@@ -120,27 +141,38 @@ func get_left_leg_prop_dist() -> float:
 	return left_leg_pos2d.distance_to(curr_left_leg_pos2d)
 
 func move_legs(delta: float) -> void:
-	if not is_on_floor():
+	# doesn't do anything when player is in air
+	if is_flying():
 		return
-	var last_is_anim_legs := is_animating_legs
+	
+	# if left legs is too far and leg animation isn't playing the set up the animation.
 	if get_left_leg_prop_dist() > max_left_leg_dist and not is_animating_legs:
 		last_l_leg_pos = l_leg_pos
 		last_r_leg_pos = r_leg_pos
-		legs_anims_t = 0.0
+		legs_anim_timer = 0.0
 		is_animating_legs = true
+
 	if is_animating_legs:
-		dest_l_leg_pos = $PropLeftLegPosToGround.global_transform.origin + static_velocity.normalized() * legs_delta + Vector3.DOWN * feet_dist_delta
-		dest_r_leg_pos = $PropRightLegPosToGround.global_transform.origin + static_velocity.normalized() * legs_delta + Vector3.DOWN * feet_dist_delta
-		var max_legs_spread: float = 3.0
-		if legs_anims_t / step_time <= 0.5:
-			l_leg_pos = last_l_leg_pos.linear_interpolate(dest_l_leg_pos, legs_anims_t / step_time * 2.0)
-			l_leg_pos = l_leg_pos + Vector3.UP * step_delta_y * sin(PI * legs_anims_t / step_time * 2.0)
-		if legs_anims_t / step_time >= 0.5:
-			r_leg_pos = last_r_leg_pos.linear_interpolate(dest_r_leg_pos, (legs_anims_t / step_time - 0.5) * 2.0)
-			r_leg_pos = r_leg_pos + Vector3.UP * step_delta_y * sin(PI * (legs_anims_t / step_time - 0.5) * 2.0)
-		set_hips_pos(normal_hips_pos + Vector3.DOWN * get_legs_spread() / max_legs_spread * 0.3)
-		legs_anims_t += delta
-		if legs_anims_t >= step_time:
+		var desired_l_leg_pos: Vector3 = $PropLeftLegPosToGround.global_transform.origin + Vector3.DOWN * foot_bone_dist_to_ground
+		var desired_r_leg_pos: Vector3 = $PropRightLegPosToGround.global_transform.origin + Vector3.DOWN * foot_bone_dist_to_ground
+		# half of animation time goes to left leg
+		if legs_anim_timer / step_anim_time <= 0.5:
+			var l_leg_interpolation_v := legs_anim_timer / step_anim_time * 2.0
+			l_leg_pos = last_l_leg_pos.linear_interpolate(desired_l_leg_pos, l_leg_interpolation_v)
+			# moving left leg up
+			l_leg_pos = l_leg_pos + Vector3.UP * step_anim_height * sin(PI * l_leg_interpolation_v)
+		# half of animation time goes to right leg
+		if legs_anim_timer / step_anim_time >= 0.5:
+			var r_leg_interpolation_v := (legs_anim_timer / step_anim_time - 0.5) * 2.0
+			r_leg_pos = last_r_leg_pos.linear_interpolate(desired_r_leg_pos, r_leg_interpolation_v)
+			# moving right leg up
+			r_leg_pos = r_leg_pos + Vector3.UP * step_anim_height * sin(PI * r_leg_interpolation_v)
+		# moving hips up and down depending on ratio of distance between legs and maximum allowed distance
+		set_hips_pos(current_hips_pos + Vector3.DOWN * get_legs_spread() / max_legs_spread * 0.3)
+		# increase timer time
+		legs_anim_timer += delta
+		# if timer time is greater than whole animation time then stop animating
+		if legs_anim_timer >= step_anim_time:
 			is_animating_legs = false
 
 func get_legs_spread() -> float:
@@ -156,7 +188,10 @@ func _manipulate_velocities(delta: float) -> void:
 		dir += transform.basis.x
 	if right:
 		dir -= transform.basis.x
-	static_velocity = dir * speed
+	# grows static_velocity to desired speed every frame
+	static_velocity = static_velocity.linear_interpolate(dir * speed, speed_change_rate * delta)
+	if static_velocity.length() < min_velocity:
+		static_velocity = Vector3.ZERO
 
 
 func _input(event):
@@ -189,8 +224,8 @@ func _input(event):
 	if event.is_action_released("crouch"):
 		is_crouching = not is_crouching
 		if is_crouching:
-			normal_hips_pos = original_hips_pos + Vector3.DOWN * crouch_delta
-			set_hips_pos(normal_hips_pos)
+			current_hips_pos = original_hips_pos + Vector3.DOWN * crouch_delta
+			set_hips_pos(current_hips_pos)
 		else:
-			normal_hips_pos = original_hips_pos
-			set_hips_pos(normal_hips_pos)
+			current_hips_pos = original_hips_pos
+			set_hips_pos(current_hips_pos)
