@@ -190,7 +190,7 @@ func _manipulate_velocities(delta: float) -> void:
 	if right:
 		dir -= transform.basis.x
 	# grows static_velocity to desired speed every frame
-	static_velocity = static_velocity.linear_interpolate(dir * speed, speed_change_rate * delta)
+	static_velocity = static_velocity.linear_interpolate(dir.normalized() * speed, speed_change_rate * delta)
 	if static_velocity.length() < min_velocity:
 		static_velocity = Vector3.ZERO
 
